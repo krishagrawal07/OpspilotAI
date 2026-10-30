@@ -17,3 +17,6 @@ dependencies = [
 
 [tool.vercel]
 entrypoint = "asgi:app"
+
+[tool.vercel.scripts]
+build = "python scripts/prepare_vercel.py"
