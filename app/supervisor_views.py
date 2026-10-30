@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from app.decision_views import cached_plan, render_workload
+from app.components.ticket_table import render_ticket_triage_table
 
 
 def render_supervisor_action_plan(
@@ -275,6 +276,7 @@ def render_supervisor_workspace(
     render_sim_func: Optional[Callable[[], None]] = None,
     render_decision_engine_func: Optional[Callable[[], None]] = None,
     render_workload_func: Optional[Callable[[], None]] = None,
+    workspace_queue: Optional[pd.DataFrame] = None,
 ):
     """Render unified Supervisor Workspace retaining all analytical features as internal tabs."""
     st.markdown(
@@ -301,34 +303,36 @@ def render_supervisor_workspace(
         "🤖 Smart Agent Dispatch",
         "🧪 What-If Simulator",
         "👥 Workload Forecast",
-    ])
+    ], on_change="rerun")
 
     with t_exec:
-        if render_overview_func is not None:
+        if t_exec.open and render_overview_func is not None:
             render_overview_func()
+        if t_exec.open and workspace_queue is not None:
+            render_ticket_triage_table(workspace_queue)
 
     with t_sla:
-        if render_sla_risk_func is not None:
+        if t_sla.open and render_sla_risk_func is not None:
             render_sla_risk_func()
 
     with t_bn:
-        if render_bottlenecks_func is not None:
+        if t_bn.open and render_bottlenecks_func is not None:
             render_bottlenecks_func()
 
     with t_dispatch:
-        if render_dispatch_func is not None:
+        if t_dispatch.open and render_dispatch_func is not None:
             render_dispatch_func()
-        elif assignment_model is not None:
+        elif t_dispatch.open and assignment_model is not None:
             render_supervisor_action_plan(open_tickets, risk_scores, agents, merchants, assignment_model)
 
     with t_sim:
-        if render_sim_func is not None:
+        if t_sim.open and render_sim_func is not None:
             render_sim_func()
 
     with t_workload:
-        if render_workload_func is not None:
+        if t_workload.open and render_workload_func is not None:
             render_workload_func()
-        else:
+        elif t_workload.open:
             render_workload(tickets)
 
 

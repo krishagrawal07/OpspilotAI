@@ -18,7 +18,6 @@ from src.config import SLA_TARGETS
 from src.routing.recommender import AgentRecommender
 from src.analytics.bottlenecks import BottleneckDetector
 from app.components import render_kpi_card
-from app.components.ticket_table import render_ticket_triage_table
 
 
 def _compute_ticket_timings(tickets_df: pd.DataFrame) -> pd.DataFrame:
@@ -744,7 +743,7 @@ def render_my_workspace(
     # -------------------------------------------------------------------------
     # 4. RECOMMENDED FOR YOU (UNASSIGNED QUEUE - EXCLUDING URGENT TICKET)
     # -------------------------------------------------------------------------
-    @st.fragment(run_every=30)
+    @st.fragment
     def render_recommended_section_fragment():
         now_str = datetime.now().strftime("%H:%M:%S")
         f_active_agent = get_active_agent(agents)
@@ -786,7 +785,12 @@ def render_my_workspace(
             )
             c_space, c_ref_btn = st.columns([1.2, 1.0])
             with c_ref_btn:
-                st.button("🔄 Refresh", key="btn_manual_refresh_recs", use_container_width=True, help="Immediately refresh recommendation queue")
+                if st.button(
+                    "Refresh", icon=":material/refresh:", type="primary",
+                    key="btn_manual_refresh_recs", width="stretch",
+                    help="Refresh recommendations using the current queue and assignments",
+                ):
+                    st.toast("Recommendations refreshed. Queue is up to date.", icon=":material/check_circle:")
 
         if f_rec_tickets:
             r_cols = st.columns(len(f_rec_tickets), gap="large", vertical_alignment="top")
@@ -882,12 +886,7 @@ def render_my_workspace(
         )
 
     # -------------------------------------------------------------------------
-    # 6. TICKET CLASSIFICATION TABLE
-    # -------------------------------------------------------------------------
-    render_ticket_triage_table(queue_df)
-
-    # -------------------------------------------------------------------------
-    # 7. TICKET ACTION PANEL (When active ticket is selected)
+    # 6. TICKET ACTION PANEL (When active ticket is selected)
     # -------------------------------------------------------------------------
     active_tid = st.session_state.get("active_ticket_id")
     if active_tid is not None and len(queue_df[queue_df["ticket_id"] == active_tid]) > 0:

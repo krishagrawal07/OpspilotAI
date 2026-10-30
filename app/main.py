@@ -76,7 +76,7 @@ apply_custom_css()
 CHART_CONFIG = {"displayModeBar": False, "responsive": True}
 
 # 3. Cached Data Ingestion
-@st.cache_data
+@st.cache_data(max_entries=2)
 def load_operational_data():
     """Load and validate tickets, agents, merchants, and partition historical vs open."""
     loader = DataLoader(TICKETS_FILE, AGENTS_FILE, MERCHANTS_FILE)
@@ -108,6 +108,22 @@ def get_sla_model():
 def get_assignment_model(artifact_version):
     return AssignmentRiskModel.load()
 
+
+@st.cache_data(max_entries=2)
+def get_queue_risk(open_tickets, merchants, artifact_version):
+    features = FeatureEngineer().prepare_open_queue_dataset(open_tickets, merchants)
+    return get_sla_model().predict_risk(features)
+
+
+@st.cache_data(max_entries=2)
+def get_workspace_queue(triage_df, agents, merchants, hist_tickets, tickets):
+    """Cache static routing; ticket ownership and status remain session-specific."""
+    return prepare_agent_workspace_data(
+        triage_df, agents, merchants,
+        AgentRecommender(agents, hist_tickets, merchants),
+        BottleneckDetector(tickets, agents, merchants),
+    )
+
 # Load data with loading state handling
 try:
     tickets, agents, merchants, hist_tickets, open_tickets, diagnostics = load_operational_data()
@@ -119,9 +135,8 @@ except Exception as e:
 
 # Compute open queue risk predictions
 if data_loaded:
-    fe = FeatureEngineer()
-    X_open = fe.prepare_open_queue_dataset(open_tickets, merchants)
-    risk_scores = sla_model.predict_risk(X_open)
+    model_version = (ROOT_DIR / "models/sla_risk_model.joblib").stat().st_mtime_ns
+    risk_scores = get_queue_risk(open_tickets, merchants, model_version)
 
     triage_df = open_tickets.copy().reset_index(drop=True)
     triage_df["breach_risk"] = risk_scores
@@ -156,13 +171,7 @@ if data_loaded:
     impact_simulator = ImpactSimulator(hist_tickets, agents, merchants, hourly_capacity_value=45.0)
 
     # Agent Workspace Enriched Data Pipeline
-    agent_queue_df = prepare_agent_workspace_data(
-        triage_df=triage_df,
-        agents=agents,
-        merchants=merchants,
-        agent_recommender=agent_recommender,
-        bottleneck_detector=bottleneck_detector,
-    )
+    agent_queue_df = get_workspace_queue(triage_df, agents, merchants, hist_tickets, tickets)
 
 # 5. Left Sidebar Navigation & Telemetry
 with st.sidebar:
@@ -1882,6 +1891,7 @@ if data_loaded:
         )
     elif mode in ("Supervisor View", "Supervisor Workspace"):
         render_supervisor_workspace(
+            workspace_queue=agent_queue_df,
             tickets=tickets,
             hist_tickets=hist_tickets,
             open_tickets=open_tickets,

@@ -1,12 +1,18 @@
 """Vercel-compatible ASGI entrypoint for the existing Streamlit dashboard."""
 
 from pathlib import Path
+import os
+
+# External ASGI hosts may start outside the repository. Streamlit discovers
+# project configuration from the working directory, including the light theme.
+ROOT_DIR = Path(__file__).resolve().parent
+os.chdir(ROOT_DIR)
 
 from fastapi import FastAPI
 import streamlit as st
 
 
-streamlit_app = st.App(Path(__file__).resolve().parent / "app" / "main.py")
+streamlit_app = st.App(ROOT_DIR / "app" / "main.py")
 app = FastAPI(
     title="OpsPilot AI",
     lifespan=streamlit_app.lifespan(),
