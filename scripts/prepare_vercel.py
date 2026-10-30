@@ -12,7 +12,7 @@ def main():
 
     site_packages = Path(sysconfig.get_path("purelib")).resolve()
     removed_bytes = 0
-    for name in ("numpy", "pandas", "scipy", "sklearn"):
+    for name in ("numpy", "pandas", "scipy", "sklearn", "pyarrow"):
         package = site_packages / name
         for candidate in sorted(package.rglob("tests")):
             if not candidate.is_dir() or candidate.is_symlink():
@@ -22,6 +22,11 @@ def main():
                 raise RuntimeError(f"Test directory escapes package: {target}")
             removed_bytes += sum(p.stat().st_size for p in target.rglob("*") if p.is_file())
             shutil.rmtree(target)
+    # Arrow's C++ headers are for compiling extensions, not runtime serialization.
+    arrow_headers = (site_packages / "pyarrow" / "include").resolve()
+    if arrow_headers.is_dir() and arrow_headers.is_relative_to(site_packages):
+        removed_bytes += sum(p.stat().st_size for p in arrow_headers.rglob("*") if p.is_file())
+        shutil.rmtree(arrow_headers)
     print(f"Removed {removed_bytes / 1024**2:.1f} MiB of dependency tests")
 
 
