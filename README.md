@@ -7,7 +7,7 @@ and other algorithm explanations, see the
 
 The prototype now includes two SLA prediction stages, capacity-constrained dispatch,
 evidence for individual recommendations, workload forecasts, surge detection and
-baseline-versus-proposed scenario comparisons.
+baseline-versus-proposed scenario comparisons.  
 
 | Prediction stage | Original holdout (362 tickets) | Separate evaluation (300 tickets) | V2 evaluation (500 tickets) |
 |---|---:|---:|---:|
